@@ -8,5 +8,6 @@ import java.util.List;
 
 @Repository
 public interface OrderDetailRepository extends JpaRepository<OrderDetail, Integer> {
+    // Lấy danh sách order detail theo orderId
     List<OrderDetail> findByOrderId(Integer orderId);
 }

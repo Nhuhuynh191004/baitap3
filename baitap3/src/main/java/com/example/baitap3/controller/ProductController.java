@@ -3,6 +3,10 @@ package com.example.baitap3.controller;
 import com.example.baitap3.entity.Product;
 import com.example.baitap3.service.ProductService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -45,5 +49,23 @@ public class ProductController {
     @PutMapping("/{id}/status")
     public ResponseEntity<Product> updateStatus(@PathVariable Integer id, @RequestParam Integer status) {
         return ResponseEntity.ok(productService.updateProductStatus(id, status));
+    }
+
+    // API filter + phân trang + sort
+    @GetMapping("/search")
+    public Page<Product> searchProducts(
+            @RequestParam(required = false) String name,
+            @RequestParam(required = false) Integer categoryId,
+            @RequestParam(required = false) Integer status,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(defaultValue = "id") String sortBy,
+            @RequestParam(defaultValue = "asc") String sortDir
+    ) {
+        Sort sort = sortDir.equalsIgnoreCase("desc") ?
+                Sort.by(sortBy).descending() : Sort.by(sortBy).ascending();
+        Pageable pageable = PageRequest.of(page, size, sort);
+
+        return productService.searchProducts(name, categoryId, status, pageable);
     }
 }

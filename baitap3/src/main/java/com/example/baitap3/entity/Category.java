@@ -1,5 +1,6 @@
 package com.example.baitap3.entity;
 
+import com.fasterxml.jackson.annotation.JsonManagedReference;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -20,5 +21,10 @@ public class Category {
     private Integer status;
 
     @OneToMany(mappedBy = "category", cascade = CascadeType.ALL)
+    @JsonManagedReference
     private List<Product> products;
+
+
+
+
 }

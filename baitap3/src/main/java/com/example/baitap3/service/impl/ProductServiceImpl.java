@@ -4,6 +4,8 @@ import com.example.baitap3.entity.Product;
 import com.example.baitap3.repository.ProductRepository;
 import com.example.baitap3.service.ProductService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -41,8 +43,12 @@ public class ProductServiceImpl implements ProductService {
         return productRepository.save(product);
     }
 
-    @Override
-    public List<Product> getProductsByCategoryId(Integer categoryId) {
-        return productRepository.findByCategoryId(categoryId);
-    }
+        @Override
+        public List<Product> getProductsByCategoryId(Integer categoryId) {
+            return productRepository.findByCategoryId(categoryId);
+        }
+@Override
+public Page<Product> searchProducts(String name, Integer categoryId, Integer status, Pageable pageable) {
+    return productRepository.searchProducts(name, categoryId, status, pageable);
+}
 }

@@ -9,7 +9,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
-import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
 
@@ -19,7 +18,7 @@ public class UserServiceImpl implements UserService {
 
     private final UserRepository userRepository;
     private final RoleRepository roleRepository;
-    private final PasswordEncoder passwordEncoder; // <- dùng interface, không dùng BCryptPasswordEncoder trực tiếp
+    private final PasswordEncoder passwordEncoder;
 
     @Override
     public List<User> getAllUsers() {
@@ -30,59 +29,46 @@ public class UserServiceImpl implements UserService {
     public Optional<User> getUserById(Integer id) {
         return userRepository.findById(id);
     }
+
+    @Override
+    public Optional<User> login(String email, String password) {
+        return userRepository.findByEmail(email)
+                .filter(user -> passwordEncoder.matches(password, user.getPassword()));
+    }
+
     @Override
     public Optional<User> getUserByEmail(String email) {
         return userRepository.findByEmail(email);
     }
 
     @Override
-    public Optional<User> login(String email, String password) {
-        Optional<User> userOpt = userRepository.findByEmail(email);
-        if (userOpt.isPresent()) {
-            User user = userOpt.get();
-            // So sánh password đã mã hóa
-            if (passwordEncoder.matches(password, user.getPassword())) {
-                return Optional.of(user);
-            }
-        }
-        return Optional.empty();
+    public Optional<User> findByEmail(String email) {
+        return userRepository.findByEmail(email);
     }
 
     @Override
     public User createUser(User user) {
-        // Hash password trước khi lưu
+        // Mã hoá password trước khi lưu
         user.setPassword(passwordEncoder.encode(user.getPassword()));
 
-        // Gán role USER mặc định
-        Role userRole = roleRepository.findById(1)
+        // Gán role mặc định = USER
+        Role roleUser = roleRepository.findByName("USER")
                 .orElseThrow(() -> new RuntimeException("Role USER not found"));
-        user.setRoles(new HashSet<>());
-        user.getRoles().add(userRole);
+        user.getRoles().add(roleUser);
 
         return userRepository.save(user);
     }
 
     @Override
     public User updateUser(User user) {
-        Optional<User> existing = userRepository.findById(user.getId());
-        if (existing.isEmpty()) throw new RuntimeException("User not found");
-        User u = existing.get();
-        u.setFull_name(user.getFull_name());
-        u.setEmail(user.getEmail());
-        u.setAddress(user.getAddress());
-        u.setPhone(user.getPhone());
-        return userRepository.save(u);
+        return userRepository.save(user);
     }
 
     @Override
     public User updateUserStatus(Integer id, Integer status) {
-        User u = userRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("User not found"));
-        u.setStatus(status);
-        return userRepository.save(u);
-    }
-    @Override
-    public Optional<User> findByEmail(String email) {
-        return userRepository.findByEmail(email);
+        User exist = userRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("User not found with id: " + id));
+        exist.setStatus(status);
+        return userRepository.save(exist);
     }
 }

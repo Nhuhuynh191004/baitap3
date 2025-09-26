@@ -26,36 +26,45 @@ public class OrderServiceImpl implements OrderService {
     }
 
     @Override
+    public List<Order> getAllOrders() {
+        return orderRepository.findAll();
+    }
+
+    @Override
     public Optional<Order> getOrderById(Integer orderId) {
         return orderRepository.findById(orderId);
     }
 
     @Override
     public Order createOrder(Integer userId) {
-        User user = userRepository.findById(userId).orElseThrow();
+        User user = userRepository.findById(userId).orElseThrow(() ->
+                new RuntimeException("User not found"));
+
         List<ShoppingCart> cartList = cartRepository.findByUserId(userId);
+        if (cartList.isEmpty()) {
+            throw new RuntimeException("Cart is empty");
+        }
 
-        if (cartList.isEmpty()) throw new RuntimeException("Cart is empty");
-
+        // Tạo order mới
         Order order = Order.builder()
                 .user(user)
                 .orderDate(LocalDateTime.now())
-                .status("Pending")
+                .status("PENDING")
                 .build();
         order = orderRepository.save(order);
 
+        // Tạo order detail từ cart
         for (ShoppingCart cart : cartList) {
             Product product = cart.getProduct();
             if (product.getStock() < cart.getQuantity()) {
                 throw new RuntimeException("Not enough stock for product: " + product.getName());
             }
 
-            // Tạo order detail
             OrderDetail orderDetail = OrderDetail.builder()
                     .order(order)
                     .product(product)
                     .quantity(cart.getQuantity())
-                    .unitPrice(product.getPrice())
+                    .unit_price(product.getPrice())
                     .build();
             orderDetailRepository.save(orderDetail);
 
@@ -64,16 +73,48 @@ public class OrderServiceImpl implements OrderService {
             productRepository.save(product);
         }
 
-        // Xóa giỏ hàng
+        // Xóa giỏ hàng sau khi đặt
         cartRepository.deleteAll(cartList);
 
         return order;
     }
 
     @Override
-    public Order updateOrderStatus(Integer orderId, String status) {
-        Order order = orderRepository.findById(orderId).orElseThrow();
-        order.setStatus(status);
+    public Order updateOrderStatus(Integer orderId, String status, Integer userId, boolean isAdmin) {
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new RuntimeException("Order not found"));
+
+        if (isAdmin) {
+            // Admin không được update status
+            throw new RuntimeException("Admin cannot update order status");
+        } else {
+            // Chỉ owner của order mới được update
+            if (!order.getUser().getId().equals(userId)) {
+                throw new RuntimeException("You do not own this order");
+            }
+
+            // User chỉ được đổi sang "DELIVERED"
+            if (!"DELIVERED".equalsIgnoreCase(status)) {
+                throw new RuntimeException("User can only set status to DELIVERED");
+            }
+
+            order.setStatus("DELIVERED");
+        }
+
         return orderRepository.save(order);
+    }
+
+    @Override
+    public Integer getUserIdByEmail(String email) {
+        return userRepository.findByEmail(email)
+                .map(User::getId)
+                .orElseThrow(() -> new RuntimeException("User not found with email: " + email));
+    }
+
+    @Override
+    public boolean isOrderOwnedByUser(Integer orderId, Integer userId) {
+        return orderRepository.findById(orderId)
+                .map(order -> order.getUser().getId().equals(userId))
+                .orElse(false);
     }
 }

@@ -8,5 +8,6 @@ import java.util.List;
 
 @Repository
 public interface OrderRepository extends JpaRepository<Order, Integer> {
+    // Lấy danh sách order theo userId
     List<Order> findByUserId(Integer userId);
 }
