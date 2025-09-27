@@ -11,6 +11,7 @@ import org.springframework.stereotype.Service;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 @Service
 @RequiredArgsConstructor
@@ -48,13 +49,18 @@ public class UserServiceImpl implements UserService {
 
     @Override
     public User createUser(User user) {
-        // Mã hoá password trước khi lưu
-        user.setPassword(passwordEncoder.encode(user.getPassword()));
+        if (userRepository.findByEmail(user.getEmail()).isPresent()) {
+            throw new RuntimeException("Email đã tồn tại");
+        }
 
-        // Gán role mặc định = USER
-        Role roleUser = roleRepository.findByName("USER")
-                .orElseThrow(() -> new RuntimeException("Role USER not found"));
-        user.getRoles().add(roleUser);
+        // Mã hóa password
+        user.setPassword(passwordEncoder.encode(user.getPassword()));
+        user.setStatus(1);
+
+        // Gán role mặc định USER (id=2)
+        Role userRole = roleRepository.findById(2)
+                .orElseThrow(() -> new RuntimeException("Role USER không tồn tại"));
+        user.setRoles(Set.of(userRole));
 
         return userRepository.save(user);
     }

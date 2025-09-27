@@ -1,12 +1,12 @@
-package com.example.baitap3.repository;
+    package com.example.baitap3.repository;
 
-import com.example.baitap3.entity.User;
-import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.stereotype.Repository;
+    import com.example.baitap3.entity.User;
+    import org.springframework.data.jpa.repository.JpaRepository;
+    import org.springframework.stereotype.Repository;
 
-import java.util.Optional;
+    import java.util.Optional;
 
-@Repository
-public interface UserRepository extends JpaRepository<User, Integer> {
-    Optional<User> findByEmail(String email);
-}
+    @Repository
+    public interface UserRepository extends JpaRepository<User, Integer> {
+        Optional<User> findByEmail(String email);
+    }

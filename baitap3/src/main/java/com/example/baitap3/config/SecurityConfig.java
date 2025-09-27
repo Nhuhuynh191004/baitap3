@@ -1,87 +1,68 @@
 package com.example.baitap3.config;
 
-import com.example.baitap3.service.CustomUserDetailsService;
-import lombok.RequiredArgsConstructor;
+import com.example.baitap3.security.JwtAuthenticationFilter;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AuthenticationManager;
-import org.springframework.security.config.annotation.authentication.builders.AuthenticationManagerBuilder;
+import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
+import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
-import org.springframework.web.cors.CorsConfiguration;
-import org.springframework.web.cors.CorsConfigurationSource;
-import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
-
-import java.util.List;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
 @Configuration
-@RequiredArgsConstructor
+@EnableMethodSecurity
 public class SecurityConfig {
 
-    private final CustomUserDetailsService userDetailsService;
+    private final JwtAuthenticationFilter jwtAuthenticationFilter;
 
-    // Password Encoder: dùng BCrypt để mã hoá mật khẩu
-    @Bean
-    public PasswordEncoder passwordEncoder() {
-        return new BCryptPasswordEncoder();
+    public SecurityConfig(JwtAuthenticationFilter jwtAuthenticationFilter) {
+        this.jwtAuthenticationFilter = jwtAuthenticationFilter;
     }
 
-    // CORS configuration: cho phép React (localhost:3000) gọi API
-    @Bean
-    public CorsConfigurationSource corsConfigurationSource() {
-        CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOrigins(List.of("http://localhost:3000"));
-        configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
-        configuration.setAllowedHeaders(List.of("*"));
-        configuration.setAllowCredentials(true);
-
-        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
-        source.registerCorsConfiguration("/**", configuration);
-        return source;
-    }
-
-    // Security Filter Chain: phân quyền cho các API
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
                 .csrf(csrf -> csrf.disable())
-                .cors(cors -> {})
+                .cors(cors -> cors.configurationSource(request -> {
+                    var corsConfig = new org.springframework.web.cors.CorsConfiguration();
+                    corsConfig.setAllowCredentials(true);
+                    corsConfig.addAllowedOriginPattern("*"); // hoặc origin frontend cụ thể
+                    corsConfig.addAllowedHeader("*");
+                    corsConfig.addAllowedMethod("*");
+                    return corsConfig;
+                }))
                 .authorizeHttpRequests(auth -> auth
-                        // public endpoints
-                        .requestMatchers("/api/users/login", "/api/users/register").permitAll()
-
-                        // admin-only
-                        .requestMatchers("/api/users/**").hasRole("Admin")
-                        .requestMatchers("/api/categories/**").hasRole("Admin")
-                        .requestMatchers("/api/products/**").hasRole("Admin")
-                        .requestMatchers("/api/orders/admin/**").hasRole("Admin")
-                        .requestMatchers("/api/order-details/admin/**").hasRole("Admin")
-
-                        // user-only
-                        .requestMatchers("/api/orders/my", "/api/orders/checkout").hasRole("User")
-                        .requestMatchers("/api/order-details/order/**").hasRole("User")
-
-                        // các endpoint còn lại: phải đăng nhập
+                        // Login & Register
+                        .requestMatchers(HttpMethod.POST, "/api/auth/register", "/api/auth/login").permitAll()
+                        // Users: only ADMIN
+                        .requestMatchers("/api/admin/users/**").hasRole("ADMIN")
+                        // Categories: MANAGER + ADMIN
+                        .requestMatchers("/api/admin/categories/**").hasAnyRole("MANAGER", "ADMIN")
+                        // Cart & Orders: USER + ADMIN
+                        .requestMatchers("/api/cart/**", "/api/orders/**").hasAnyRole("USER", "ADMIN")
+                        // Public Products
+                        .requestMatchers("/api/products/**").permitAll()
+                        // All other requests must be authenticated
                         .anyRequest().authenticated()
-                )
-                .httpBasic(httpBasic -> {})
-                .formLogin(form -> form.disable());
+                );
+
+        http.addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
     }
 
 
-    // Authentication Manager: xác thực user từ database
     @Bean
-    public AuthenticationManager authenticationManager(HttpSecurity http) throws Exception {
-        AuthenticationManagerBuilder authBuilder =
-                http.getSharedObject(AuthenticationManagerBuilder.class);
+    public AuthenticationManager authenticationManager(AuthenticationConfiguration config) throws Exception {
+        return config.getAuthenticationManager();
+    }
 
-        authBuilder.userDetailsService(userDetailsService)
-                .passwordEncoder(passwordEncoder());
-
-        return authBuilder.build();
+    @Bean
+    public PasswordEncoder passwordEncoder() {
+        return new BCryptPasswordEncoder();
     }
 }
