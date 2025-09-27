@@ -14,6 +14,7 @@ import java.util.Optional;
 @Service
 @RequiredArgsConstructor
 public class ProductServiceImpl implements ProductService {
+
     private final ProductRepository productRepository;
 
     @Override
@@ -38,17 +39,22 @@ public class ProductServiceImpl implements ProductService {
 
     @Override
     public Product updateProductStatus(Integer id, Integer status) {
-        Product product = productRepository.findById(id).orElseThrow();
+        Product product = productRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Product not found"));
         product.setStatus(status);
         return productRepository.save(product);
     }
 
-        @Override
-        public List<Product> getProductsByCategoryId(Integer categoryId) {
-            return productRepository.findByCategoryId(categoryId);
-        }
-@Override
-public Page<Product> searchProducts(String name, Integer categoryId, Integer status, Pageable pageable) {
-    return productRepository.searchProducts(name, categoryId, status, pageable);
-}
+    @Override
+    public Page<Product> searchProducts(String name, Integer categoryId, Integer status, Pageable pageable) {
+        return productRepository.search(name, categoryId, status, pageable);
+    }
+
+    @Override
+    public List<Product> getProductsByCategoryId(Integer categoryId) {
+        // Nếu bạn muốn trả về List thay vì Page, có thể lấy tất cả hoặc giới hạn
+        return productRepository.findAll().stream()
+                .filter(p -> p.getCategory() != null && p.getCategory().getId().equals(categoryId))
+                .toList();
+    }
 }
